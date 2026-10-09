@@ -1,0 +1,9 @@
+.qa_tz/
+node_modules/
+dist/
+build/
+.env
+.env.*
+!.env.example
+*.log
+build_tz.py
