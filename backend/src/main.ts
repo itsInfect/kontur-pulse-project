@@ -12,6 +12,7 @@ import { RedisIoAdapter } from './redis-io.adapter';
 async function bootstrap() {
   if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) throw new Error('JWT_SECRET must be at least 32 characters');
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true });
+  if (process.env.VERCEL) app.setGlobalPrefix('api');
   if (process.env.REDIS_URL) {
     const adapter = new RedisIoAdapter(app);
     await adapter.connect(process.env.REDIS_URL);
@@ -22,7 +23,7 @@ async function bootstrap() {
   app.use(cookieParser());
   const attempts = new Map<string, { count: number; until: number }>();
   app.use((req: Request, res: Response, next: NextFunction) => {
-    const limited = req.method === 'POST' && (/^\/auth\/(register|login|password\/(forgot|reset)|verify-email(\/resend)?)$/.test(req.path) || /^\/join\/[^/]+$/.test(req.path));
+    const limited = req.method === 'POST' && (/^(\/api)?\/auth\/(register|login|password\/(forgot|reset)|verify-email(\/resend)?)$/.test(req.path) || /^(\/api)?\/join\/[^/]+$/.test(req.path));
     if (!limited) return next();
     const now = Date.now();
     if (attempts.size > 10000) {
