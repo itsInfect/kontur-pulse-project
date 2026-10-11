@@ -1,0 +1,216 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ConferenceStatus {
+  SCHEDULED
+  LIVE
+  ENDED
+  CANCELLED
+}
+
+enum ParticipantRole {
+  ORGANIZER
+  MODERATOR
+  GUEST
+}
+
+enum ParticipantStatus {
+  PRESENT
+  LEFT
+  REMOVED
+}
+
+enum InteractionStatus {
+  DRAFT
+  OPEN
+  CLOSED
+}
+
+model User {
+  id              String    @id @default(uuid())
+  email           String    @unique
+  name            String
+  passwordHash    String
+  emailVerifiedAt DateTime?
+  createdAt       DateTime  @default(now())
+  sessions        RefreshSession[]
+  actionTokens    ActionToken[]
+  conferences     Conference[] @relation("OwnedConferences")
+  moderating      ConferenceModerator[]
+  participants    Participant[]
+}
+
+model RefreshSession {
+  id        String    @id @default(uuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ActionToken {
+  id        String    @id @default(uuid())
+  userId    String
+  kind      String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId, kind])
+}
+
+model Conference {
+  id           String @id @default(uuid())
+  ownerId      String
+  slug         String @unique
+  title        String
+  description  String @default("")
+  startsAt     DateTime
+  status       ConferenceStatus @default(SCHEDULED)
+  allowGuests  Boolean @default(true)
+  startedAt    DateTime?
+  endedAt      DateTime?
+  hiddenAt     DateTime?
+  version      Int @default(0)
+  createdAt    DateTime @default(now())
+  owner        User @relation("OwnedConferences", fields: [ownerId], references: [id])
+  participants Participant[]
+  moderators   ConferenceModerator[]
+  events       AuditEvent[]
+  polls        Poll[]
+  votes        Vote[]
+  @@index([ownerId, startsAt])
+}
+
+model ConferenceModerator {
+  conferenceId String
+  userId       String
+  canEnd       Boolean @default(false)
+  createdAt    DateTime @default(now())
+  conference   Conference @relation(fields: [conferenceId], references: [id], onDelete: Cascade)
+  user         User @relation(fields: [userId], references: [id])
+  @@id([conferenceId, userId])
+}
+
+model AuditEvent {
+  id           String @id @default(uuid())
+  conferenceId String
+  version      Int
+  type         String
+  actorId      String?
+  payload      Json
+  createdAt    DateTime @default(now())
+  conference   Conference @relation(fields: [conferenceId], references: [id], onDelete: Cascade)
+  @@unique([conferenceId, version])
+  @@index([conferenceId, createdAt])
+}
+
+model Participant {
+  id               String @id @default(uuid())
+  conferenceId     String
+  userId           String?
+  guestSessionHash String? @unique
+  displayName      String
+  role             ParticipantRole
+  status           ParticipantStatus @default(PRESENT)
+  mediaConnected   Boolean @default(false)
+  joinedAt         DateTime @default(now())
+  leftAt           DateTime?
+  conference       Conference @relation(fields: [conferenceId], references: [id])
+  user             User? @relation(fields: [userId], references: [id])
+  responses        PollResponse[]
+  eligibleVotes    VoteEligible[]
+  ballots          VoteBallot[]
+  @@unique([conferenceId, userId])
+  @@index([conferenceId, status])
+}
+
+model Poll {
+  id           String @id @default(uuid())
+  conferenceId String
+  question     String
+  multiple     Boolean @default(false)
+  status       InteractionStatus @default(DRAFT)
+  createdAt    DateTime @default(now())
+  conference   Conference @relation(fields: [conferenceId], references: [id])
+  options      PollOption[]
+  responses    PollResponse[]
+}
+
+model PollOption {
+  id       String @id @default(uuid())
+  pollId   String
+  text     String
+  position Int
+  poll     Poll @relation(fields: [pollId], references: [id])
+  selections PollSelection[]
+  @@unique([pollId, position])
+}
+
+model PollResponse {
+  id            String @id @default(uuid())
+  pollId        String
+  participantId String
+  updatedAt     DateTime @updatedAt
+  poll          Poll @relation(fields: [pollId], references: [id])
+  participant   Participant @relation(fields: [participantId], references: [id])
+  selections    PollSelection[]
+  @@unique([pollId, participantId])
+}
+
+model PollSelection {
+  responseId String
+  optionId   String
+  response   PollResponse @relation(fields: [responseId], references: [id], onDelete: Cascade)
+  option     PollOption @relation(fields: [optionId], references: [id])
+  @@id([responseId, optionId])
+}
+
+model Vote {
+  id           String @id @default(uuid())
+  conferenceId String
+  question     String
+  status       InteractionStatus @default(DRAFT)
+  createdAt    DateTime @default(now())
+  conference   Conference @relation(fields: [conferenceId], references: [id])
+  options      VoteOption[]
+  eligible     VoteEligible[]
+  ballots      VoteBallot[]
+}
+
+model VoteOption {
+  id       String @id @default(uuid())
+  voteId   String
+  text     String
+  position Int
+  vote     Vote @relation(fields: [voteId], references: [id])
+  ballots  VoteBallot[]
+  @@unique([voteId, position])
+}
+
+model VoteEligible {
+  voteId        String
+  participantId String
+  vote          Vote @relation(fields: [voteId], references: [id])
+  participant   Participant @relation(fields: [participantId], references: [id])
+  @@id([voteId, participantId])
+}
+
+model VoteBallot {
+  id            String @id @default(uuid())
+  voteId        String
+  participantId String
+  optionId      String
+  createdAt     DateTime @default(now())
+  vote          Vote @relation(fields: [voteId], references: [id])
+  participant   Participant @relation(fields: [participantId], references: [id])
+  option        VoteOption @relation(fields: [optionId], references: [id])
+  @@unique([voteId, participantId])
+}

@@ -1,0 +1,47 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: pulse
+      POSTGRES_USER: pulse
+      POSTGRES_PASSWORD: pulse
+    ports: ["5432:5432"]
+    volumes: ["pulse_pg:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pulse -d pulse"]
+      interval: 5s
+      retries: 10
+  mailpit:
+    image: axllent/mailpit:v1.27
+    ports: ["8025:8025", "1025:1025"]
+  livekit:
+    image: livekit/livekit-server:v1.9
+    command: ["--config", "/etc/livekit.yaml", "--bind", "0.0.0.0", "--node-ip", "127.0.0.1"]
+    volumes: ["./livekit.yaml:/etc/livekit.yaml:ro"]
+    ports: ["7880:7880", "7881:7881", "7882:7882/udp"]
+  backend:
+    build: ./backend
+    depends_on:
+      postgres: { condition: service_healthy }
+      mailpit: { condition: service_started }
+      livekit: { condition: service_started }
+    environment:
+      DATABASE_URL: postgresql://pulse:pulse@postgres:5432/pulse?schema=public
+      JWT_SECRET: local-development-only-change-this-secret
+      FRONTEND_ORIGIN: http://127.0.0.1:5173
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
+      MAIL_FROM: Kontur Pulse <no-reply@pulse.local>
+      LIVEKIT_URL: ws://127.0.0.1:7880
+      LIVEKIT_INTERNAL_URL: http://livekit:7880
+      LIVEKIT_API_KEY: devkey
+      LIVEKIT_API_SECRET: secretsecretsecretsecretsecretsecret
+    ports: ["3000:3000"]
+  frontend:
+    build: ./frontend
+    depends_on: [backend]
+    environment:
+      VITE_API_TARGET: http://backend:3000
+    ports: ["5173:5173"]
+volumes:
+  pulse_pg:
