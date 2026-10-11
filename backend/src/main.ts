@@ -11,6 +11,7 @@ import { RedisIoAdapter } from './redis-io.adapter';
 
 async function bootstrap() {
   if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) throw new Error('JWT_SECRET must be at least 32 characters');
+  process.env.DATABASE_URL ||= process.env.POSTGRES_PRISMA_URL || process.env.POSTGRES_URL;
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true });
   if (process.env.VERCEL) app.setGlobalPrefix('api');
   if (process.env.REDIS_URL) {

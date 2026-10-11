@@ -16,7 +16,7 @@
 
 | Имя | Значение |
 | --- | --- |
-| `DATABASE_URL` | Строка подключения PostgreSQL с пулом соединений (для Prisma) |
+| `DATABASE_URL` | Строка подключения PostgreSQL с пулом соединений. При подключении Neon через Vercel можно не задавать: сборка использует `POSTGRES_URL_NON_POOLING`, а запущенный backend — `POSTGRES_PRISMA_URL` |
 | `REDIS_URL` | TLS-адрес Redis вида `rediss://...` |
 | `JWT_SECRET` | Случайная строка длиной не менее 32 символов; отдельная от локального проекта |
 | `LIVEKIT_URL` | Публичный адрес LiveKit Cloud вида `wss://...` |
@@ -31,7 +31,7 @@
 ## Порядок запуска
 
 1. Создать внешние ресурсы и добавить их ключи в Vercel для Production и Preview. `FRONTEND_ORIGIN` для Preview оставить пустым: тогда почтовые ссылки используют адрес конкретной сборки.
-2. Применить миграции из `backend/prisma/migrations` к новой базе командой `npm run db:deploy` из папки `backend` с `DATABASE_URL` этой базы. Это однократный шаг для новой базы; после изменений схемы миграции повторяются. Строку подключения не вставлять в команду, которая попадёт в историю PowerShell; её можно временно записать в исключённый из Git файл `backend/.env`.
+2. При каждой сборке backend выполняет `prisma migrate deploy`, используя `DATABASE_URL` или автоматически добавленный Neon `POSTGRES_URL_NON_POOLING`. Эта команда применяет только ещё не выполненные миграции из `backend/prisma/migrations`. Подключите базу до повторного развёртывания проекта.
 3. Импортировать репозиторий в Vercel и выполнить Preview deployment. Проверить, что открываются `/login` и гостевая ссылка `/join/...`, а `/api/auth/me` отдаёт ответ API, а не HTML страницы.
 4. Настроить в LiveKit Cloud подписанный webhook на `https://<адрес-сайта>/api/webhooks/livekit` для событий входа и выхода участника. Ключ и секрет webhook должны соответствовать `LIVEKIT_API_KEY` и `LIVEKIT_API_SECRET` в backend.
 5. После проверки Preview выполнить Production deployment и задать `FRONTEND_ORIGIN` его HTTPS-адресом. Повторно развернуть проект после изменения переменной.

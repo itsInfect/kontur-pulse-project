@@ -15,7 +15,7 @@
       "root": "backend",
       "framework": "nestjs",
       "installCommand": "npm ci",
-      "buildCommand": "npm run db:generate && npm run build"
+      "buildCommand": "node scripts/vercel-build.mjs"
     }
   },
   "rewrites": [
