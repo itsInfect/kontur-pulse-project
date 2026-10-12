@@ -14,9 +14,10 @@ async function bootstrap() {
   process.env.DATABASE_URL ||= process.env.POSTGRES_PRISMA_URL || process.env.POSTGRES_URL;
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true });
   if (process.env.VERCEL) app.setGlobalPrefix('api');
-  if (process.env.REDIS_URL) {
+  const redisUrl = process.env.REDIS_URL || process.env.KV_URL || process.env.UPSTASH_REDIS_URL;
+  if (redisUrl) {
     const adapter = new RedisIoAdapter(app);
-    await adapter.connect(process.env.REDIS_URL);
+    await adapter.connect(redisUrl);
     app.useWebSocketAdapter(adapter);
   }
   app.useBodyParser('json', { type: ['application/json', 'application/webhook+json'] });

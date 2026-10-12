@@ -17,7 +17,7 @@
 | Имя | Значение |
 | --- | --- |
 | `DATABASE_URL` | Строка подключения PostgreSQL с пулом соединений. При подключении Neon через Vercel можно не задавать: сборка использует `POSTGRES_URL_NON_POOLING`, а запущенный backend — `POSTGRES_PRISMA_URL` |
-| `REDIS_URL` | TLS-адрес Redis вида `rediss://...` |
+| `REDIS_URL` | TLS-адрес Redis вида `rediss://...`. Интеграция Upstash может автоматически добавить `KV_URL` или `UPSTASH_REDIS_URL`; backend принимает их без ручного копирования |
 | `JWT_SECRET` | Случайная строка длиной не менее 32 символов; отдельная от локального проекта |
 | `LIVEKIT_URL` | Публичный адрес LiveKit Cloud вида `wss://...` |
 | `LIVEKIT_API_KEY` | API key того же проекта LiveKit |
