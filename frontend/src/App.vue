@@ -15,7 +15,7 @@ const showActiveRoom = computed(() => isRoomRoute.value || (showShell.value && !
 watch(() => route.fullPath, () => {
   if (isRoomRoute.value) {
     const id = String(route.params.id)
-    if (store.activeRoomId !== id) store.openRoom(id)
+    if (store.activeRoomId !== id || store.roomMinimized) store.openRoom(id)
   } else if (store.activeRoomId && !store.roomMinimized) {
     store.minimizeRoom()
   }
