@@ -32,10 +32,13 @@ async function bootstrap() {
       for (const [key, value] of attempts) if (value.until < now) attempts.delete(key);
       if (attempts.size > 10000) attempts.delete(attempts.keys().next().value!);
     }
-    const key = `${req.ip}:${req.path}`;
+    const forwarded = req.headers['x-forwarded-for'];
+    const forwardedIp = (Array.isArray(forwarded) ? forwarded[0] : forwarded)?.split(',')[0].trim();
+    const clientIp = process.env.VERCEL && forwardedIp ? forwardedIp : req.ip;
+    const key = `${clientIp}:${req.path}`;
     const entry = attempts.get(key);
     if (!entry || entry.until < now) { attempts.set(key, { count: 1, until: now + 15 * 60000 }); return next(); }
-    const limit = req.path.endsWith('/login') ? 20 : 5;
+    const limit = req.path.endsWith('/login') ? 20 : req.path.endsWith('/register') ? 10 : 5;
     if (++entry.count > limit) return res.status(429).json({ statusCode: 429, message: 'Слишком много запросов. Повторите позже.' });
     return next();
   });
