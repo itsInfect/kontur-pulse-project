@@ -6,7 +6,7 @@ import { IsEmail, IsString, Length, Matches } from 'class-validator';
 import { createHash, randomBytes } from 'crypto';
 import type { Request, Response } from 'express';
 import nodemailer from 'nodemailer';
-import { verify, hash } from 'argon2';
+import { hashPassword, verifyPassword } from './password';
 import { Db } from './db';
 import { logEvent } from './log';
 
@@ -154,7 +154,7 @@ export class AuthController {
     if (await this.db.user.findUnique({ where: { email } })) throw new ConflictException('Email уже зарегистрирован');
     if (!dto.name.trim()) throw new BadRequestException('Укажите имя');
     let user;
-    try { user = await this.db.user.create({ data: { email, name: dto.name.trim(), passwordHash: await hash(dto.password) } }); }
+    try { user = await this.db.user.create({ data: { email, name: dto.name.trim(), passwordHash: await hashPassword(dto.password) } }); }
     catch (error) { if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') throw new ConflictException('Email уже зарегистрирован'); throw error; }
     await this.auth.createAction(user.id, user.email, 'verify');
     return { ok: true };
@@ -176,7 +176,7 @@ export class AuthController {
   @Post('login')
   async login(@Body() dto: LoginDto, @Res({ passthrough: true }) res: Response) {
     const user = await this.db.user.findUnique({ where: { email: dto.email.trim().toLowerCase() } });
-    if (!user || !(await verify(user.passwordHash, dto.password))) throw new UnauthorizedException('Неверный email или пароль');
+    if (!user || !(await verifyPassword(user.passwordHash, dto.password))) throw new UnauthorizedException('Неверный email или пароль');
     if (!user.emailVerifiedAt) throw new ForbiddenException('Подтвердите email');
     logEvent('auth.login', { userId: user.id });
     return this.auth.issue(user.id, res);
@@ -202,7 +202,7 @@ export class AuthController {
 
   @Post('password/reset')
   async reset(@Body() dto: ResetDto) {
-    await this.auth.useAction(dto.token, 'reset', await hash(dto.password));
+    await this.auth.useAction(dto.token, 'reset', await hashPassword(dto.password));
     return { ok: true };
   }
 }
